@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
 )
 
@@ -47,12 +48,33 @@ func testPanic(w http.ResponseWriter, req *http.Request) {
 }
 
 func log(w http.ResponseWriter, req *http.Request) {
-	os.Stdout.WriteString("FATAL 1658217911838250000 example.go:66 10.79.163.90 fatal level test!\n")
-	os.Stdout.WriteString("WARN 1658217911838250001 example.go:66 10.79.163.90 warn level test!\n")
-	os.Stdout.WriteString("ERROR 1658217911838250002 example.go:66 10.79.163.90 error level test!\n")
-	os.Stdout.WriteString("NOTICE 1658217911838250002 example.go:66 10.79.163.90 notice level test!\n")
-	os.Stdout.WriteString("INFO 1658217911838250002 example.go:66 10.79.163.90 info level test!\n")
-	os.Stdout.WriteString("DEBUG 1658217911838250002 example.go:66 10.79.163.90 debug level test!\n")
+	var record string
+	v, e := url.ParseQuery(req.URL.RawQuery)
+	if e != nil {
+		fmt.Fprintf(os.Stderr, "err: %v\n", e)
+		return
+	}
+	if v["type"] == nil {
+		fmt.Fprintln(os.Stderr, "err: type param is not valid")
+		return
+	}
+	switch v["type"][0] {
+	case "D":
+		record = "DEBUG 1658217911838250001 example.go:66 10.79.163.90 debug level test!\n"
+	case "I":
+		record = "INFO 1658217911838250002 example.go:66 10.79.163.90 info level test!\n"
+	case "N":
+		record = "NOTICE 1658217911838250003 example.go:66 10.79.163.90 notice level test!\n"
+	case "E":
+		record = "ERROR 1658217911838250004 example.go:66 10.79.163.90 error level test!\n"
+	case "W":
+		record = "WARN 1658217911838250005 example.go:66 10.79.163.90 warn level test!\n"
+	case "F":
+		record = "FATAL 1658217911838250006 example.go:66 10.79.163.90 fatal level test!\n"
+	default:
+	}
+	fmt.Fprintln(os.Stdout, record)
+	fmt.Fprintf(w, "body: %v, err: %v\n", record, e)
 }
 
 func main() {
