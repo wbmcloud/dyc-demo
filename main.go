@@ -1,7 +1,9 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"github.com/bytedance/go-dyclog"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -77,6 +79,67 @@ func log(w http.ResponseWriter, req *http.Request) {
 	fmt.Fprintf(w, "body: %v, err: %v\n", record, e)
 }
 
+func sdkLog(w http.ResponseWriter, req *http.Request) {
+	var record string
+	v, e := url.ParseQuery(req.URL.RawQuery)
+	if e != nil {
+		fmt.Fprintf(os.Stderr, "err: %v\n", e)
+		return
+	}
+	if v["type"] == nil {
+		fmt.Fprintln(os.Stderr, "err: type param is not valid")
+		return
+	}
+	switch v["type"][0] {
+	case "D":
+		dyclog.Debug("This is Debug log")
+	case "I":
+		dyclog.Info("This is Info log")
+	case "N":
+		dyclog.Notice("This is Notice log")
+	case "E":
+		dyclog.Error("This is Error log")
+	case "W":
+		dyclog.Warn("This is Warn log")
+	case "F":
+		dyclog.Fatal("This is Fatal log")
+	default:
+	}
+	fmt.Fprintln(os.Stdout, record)
+	fmt.Fprintf(w, "body: %v, err: %v\n", record, e)
+}
+
+func sdkCtxLog(w http.ResponseWriter, req *http.Request) {
+	ctx := dyclog.InjectLogIDToCtx(context.Background(), req.Header.Get("X-Tt-Logid"))
+	var record string
+	v, e := url.ParseQuery(req.URL.RawQuery)
+	if e != nil {
+		fmt.Fprintf(os.Stderr, "err: %v\n", e)
+		return
+	}
+	if v["type"] == nil {
+		fmt.Fprintln(os.Stderr, "err: type param is not valid")
+		return
+	}
+	switch v["type"][0] {
+	case "D":
+		dyclog.CtxDebug(ctx, "This is Debug log")
+	case "I":
+		dyclog.CtxInfo(ctx, "This is Info log")
+	case "N":
+		dyclog.CtxNotice(ctx, "This is Notice log")
+	case "E":
+		dyclog.CtxError(ctx, "This is Error log")
+	case "W":
+		dyclog.CtxWarn(ctx, "This is Warn log")
+	case "F":
+		dyclog.CtxFatal(ctx, "This is Fatal log")
+	default:
+	}
+	fmt.Fprintln(os.Stdout, record)
+	fmt.Fprintf(w, "body: %v, err: %v\n", record, e)
+}
+
 func main() {
 	http.HandleFunc("/hello", hello)
 	http.HandleFunc("/headers", headers)
@@ -86,6 +149,8 @@ func main() {
 	http.HandleFunc("/vi/body", body)
 	http.HandleFunc("/panic", testPanic)
 	http.HandleFunc("/log", log)
+	http.HandleFunc("/sdk/log", sdkLog)
+	http.HandleFunc("/sdk/ctx/log", sdkCtxLog)
 
 	http.ListenAndServe(":8000", nil)
 }
